@@ -1,5 +1,8 @@
 using EtimadScraper.Configuration;
+using EtimadScraper.Data;
+using EtimadScraper.Jobs;
 using EtimadScraper.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace EtimadScraper;
 
@@ -7,7 +10,12 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.InputEncoding = System.Text.Encoding.UTF8;
+
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 
         // Add services to the container
         builder.Services.AddControllers();
@@ -42,8 +50,38 @@ public class Program
             OutputFilePath = "tenders.json" // Output file name
         });
 
-        // Register scraper service as scoped (new instance per request)
+        // ?? ScrapingJob settings ??????????????????????????????????????????????
+        var jobSettings = builder.Configuration
+            .GetSection(ScrapingJobSettings.SectionName)
+            .Get<ScrapingJobSettings>() ?? new ScrapingJobSettings();
+        builder.Services.AddSingleton(jobSettings);
+
+        // ?? SQL Server / EF Core ??????????????????????????????????????????????
+        var connectionString = builder.Configuration["Database:ConnectionString"]
+            ?? "Server=207.180.213.46;Database=EtimadTenders;User Id=sa;Password=dev_09072023ha$;TrustServerCertificate=True;";
+
+        builder.Services.AddDbContext<TenderDbContext>(options =>
+        {
+            options.UseSqlServer(connectionString);
+            if (builder.Environment.IsDevelopment())
+            {
+                var enableSensitiveDataLogging = builder.Configuration.GetValue<bool>("Database:EnableSensitiveDataLogging");
+                if (enableSensitiveDataLogging)
+                    options.EnableSensitiveDataLogging();
+
+                options.EnableDetailedErrors();
+            }
+        });
         builder.Services.AddScoped<EtimadScraperService>();
+        builder.Services.AddScoped<TenderPersistenceService>();
+        builder.Services.AddScoped<TenderScrapingJobService>();
+
+        // ?? Background hosted service (Singleton) ????????????????????????????
+        // Registered as both IHostedService (for .NET to manage) AND as its
+        // concrete type (so controllers can inject it directly).
+        builder.Services.AddSingleton<TenderScrapingHostedService>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<TenderScrapingHostedService>());
 
         // Register HttpClient for TenderDetailsScraperService
         builder.Services.AddHttpClient("EtimadClient")
@@ -58,6 +96,15 @@ public class Program
         builder.Services.AddScoped<TenderDetailsScraperService>();
 
         var app = builder.Build();
+
+        // ?? Auto-migrate on startup (controlled by appsettings) ???????????????
+        var enableAutoMigration = builder.Configuration.GetValue<bool>("Database:EnableAutoMigration");
+        if (enableAutoMigration)
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<TenderDbContext>();
+            db.Database.Migrate();
+        }
 
         // Enable Swagger in all environments (not just Development)
         app.UseSwagger();

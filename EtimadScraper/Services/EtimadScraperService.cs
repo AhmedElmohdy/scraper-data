@@ -56,8 +56,9 @@ public class EtimadScraperService : IDisposable
     /// </summary>
     /// <param name="startPage">Starting page number</param>
     /// <param name="endPage">Ending page number</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of scraped tender data</returns>
-    public async Task<List<TenderDto>> ScrapeTendersAsync(int startPage, int endPage)
+    public async Task<List<TenderDto>> ScrapeTendersAsync(int startPage, int endPage, CancellationToken cancellationToken = default)
     {
         if (startPage < 1 || endPage < startPage)
         {
@@ -212,20 +213,34 @@ public class EtimadScraperService : IDisposable
                 _logger.LogWarning("Basic content selector timed out");
             }
 
-            // Strategy 2: Wait for specific tender container
+            // Strategy 2: Wait for specific tender container or fallback tender indicators
             try
             {
                 await page.WaitForSelectorAsync(ScraperSelectors.TenderContainer, new PageWaitForSelectorOptions
                 {
-                    Timeout = 10000,
-                    State = WaitForSelectorState.Visible
+                    Timeout = 7000,
+                    State = WaitForSelectorState.Attached
                 });
                 contentLoaded = true;
                 _logger.LogDebug("Tender container found");
             }
             catch
             {
-                _logger.LogWarning("Tender container selector not found");
+                var fallbackCards = await page.QuerySelectorAllAsync(ScraperSelectors.TenderCard);
+                var fallbackLinks = await page.QuerySelectorAllAsync("a[href*='DetailsForVisitor'], a[href*='STenderId=']");
+
+                if (fallbackCards.Count > 0 || fallbackLinks.Count > 0)
+                {
+                    contentLoaded = true;
+                    _logger.LogDebug(
+                        "Primary container not found, but fallback tender content exists (cards={Cards}, links={Links}).",
+                        fallbackCards.Count,
+                        fallbackLinks.Count);
+                }
+                else
+                {
+                    _logger.LogWarning("Tender container selector not found and no fallback tender content detected");
+                }
             }
 
             // Strategy 3: Just wait a bit for dynamic content to load
@@ -319,11 +334,12 @@ public class EtimadScraperService : IDisposable
                 }
             }
 
-            // If table extraction worked, return results
+            // If table extraction worked, return de-duplicated results
             if (tenders.Count > 0)
             {
-                _logger.LogDebug("Successfully extracted {Count} tenders from table", tenders.Count);
-                return tenders;
+                var unique = DeduplicateByBusinessKey(tenders);
+                _logger.LogDebug("Successfully extracted {Count} tenders from table ({Unique} unique)", tenders.Count, unique.Count);
+                return unique;
             }
 
             // Try card-based layout
@@ -357,6 +373,9 @@ public class EtimadScraperService : IDisposable
                 _logger.LogDebug("No cards found, trying alternative extraction...");
                 tenders = await ExtractTendersAlternativeAsync(page);
             }
+
+            // Final in-page de-duplication by business key
+            tenders = DeduplicateByBusinessKey(tenders);
 
             // If still nothing, take screenshot for debugging
             if (tenders.Count == 0)
@@ -466,8 +485,8 @@ public class EtimadScraperService : IDisposable
         
         try
         {
-            // Look for all links that might be tender links
-            var links = await page.QuerySelectorAllAsync("a[href*='tender'], a[href*='Tender'], a[href*='Details']");
+            // Look for real tender details links only (avoid generic links)
+            var links = await page.QuerySelectorAllAsync("a[href*='DetailsForVisitor'], a[href*='STenderId=']");
             
             _logger.LogDebug("Found {LinkCount} potential tender links", links.Count);
             
@@ -478,12 +497,21 @@ public class EtimadScraperService : IDisposable
                     var href = await link.GetAttributeAsync("href");
                     var text = await link.TextContentAsync();
                     
-                    if (!string.IsNullOrWhiteSpace(text) && !string.IsNullOrWhiteSpace(href))
+                    if (!string.IsNullOrWhiteSpace(href))
                     {
+                        var absoluteUrl = href.StartsWith("http") ? href : $"https://tenders.etimad.sa{href}";
+
+                        // Keep only real tender details URLs
+                        if (!(absoluteUrl.Contains("DetailsForVisitor", StringComparison.OrdinalIgnoreCase) ||
+                              absoluteUrl.Contains("STenderId=", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            continue;
+                        }
+
                         var tender = new TenderDto
                         {
-                            Title = text.Trim(),
-                            DetailsUrl = href.StartsWith("http") ? href : $"https://tenders.etimad.sa{href}",
+                            Title = text?.Trim() ?? string.Empty,
+                            DetailsUrl = absoluteUrl,
                             ScrapedAt = DateTime.UtcNow
                         };
                         
@@ -517,6 +545,22 @@ public class EtimadScraperService : IDisposable
         return tenders;
     }
 
+    private static List<TenderDto> DeduplicateByBusinessKey(List<TenderDto> tenders)
+    {
+        if (tenders.Count <= 1)
+            return tenders;
+
+        return tenders
+            .Where(t => !string.IsNullOrWhiteSpace(t.DetailsUrl) || !string.IsNullOrWhiteSpace(t.TenderNumber))
+            .GroupBy(
+                t => !string.IsNullOrWhiteSpace(t.DetailsUrl)
+                    ? t.DetailsUrl.Trim()
+                    : t.TenderNumber.Trim(),
+                StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+    }
+
     /// <summary>
     /// Extract tender information from a card element (modern layout)
     /// </summary>
@@ -544,6 +588,13 @@ public class EtimadScraperService : IDisposable
                         ? href 
                         : $"https://tenders.etimad.sa{href}";
                 }
+            }
+
+            if (string.IsNullOrWhiteSpace(tender.DetailsUrl) ||
+                !(tender.DetailsUrl.Contains("DetailsForVisitor", StringComparison.OrdinalIgnoreCase) ||
+                  tender.DetailsUrl.Contains("STenderId=", StringComparison.OrdinalIgnoreCase)))
+            {
+                return null;
             }
 
             // Extract all text content from card for additional parsing
