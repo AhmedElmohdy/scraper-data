@@ -14,15 +14,18 @@ public class TenderScraperController : ControllerBase
 {
     private readonly ILogger<TenderScraperController> _logger;
     private readonly EtimadScraperService _scraperService;
+    private readonly TenderDetailsScraperService _tenderDetailsService;
     private readonly ScraperConfiguration _config;
 
     public TenderScraperController(
         ILogger<TenderScraperController> logger,
         EtimadScraperService scraperService,
+        TenderDetailsScraperService tenderDetailsService,
         ScraperConfiguration config)
     {
         _logger = logger;
         _scraperService = scraperService;
+        _tenderDetailsService = tenderDetailsService;
         _config = config;
     }
 
@@ -155,6 +158,56 @@ public class TenderScraperController : ControllerBase
                 startPage = _config.StartPage
             }
         });
+    }
+
+    /// <summary>
+    /// Get detailed tender information by tender ID
+    /// </summary>
+    /// <param name="tenderId">Tender ID (e.g., pFtWw3BqD9rAnKqZhiqj3A==)</param>
+    /// <param name="includeRawHtml">Whether to include raw HTML in response (for debugging)</param>
+    /// <returns>Detailed tender information</returns>
+    [HttpGet("details/{tenderId}")]
+    [ProducesResponseType(typeof(TenderDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetTenderDetails(string tenderId, [FromQuery] bool includeRawHtml = false)
+    {
+        if (string.IsNullOrWhiteSpace(tenderId))
+        {
+            return BadRequest(new { error = "Tender ID is required" });
+        }
+
+        try
+        {
+            _logger.LogInformation("Fetching tender details for ID: {TenderId}", tenderId);
+
+            var tenderDetails = await _tenderDetailsService.ScrapeTenderDetailsAsync(tenderId, includeRawHtml);
+
+            // Log warning if scraping failed, but still return all available data
+            if (!tenderDetails.Metadata.IsSuccess)
+            {
+                _logger.LogWarning("Failed to retrieve tender details for {TenderId}: {Error}",
+                    tenderId, tenderDetails.Metadata.ErrorMessage);
+            }
+
+            // Always return all data (whether from scraping, cache, or error)
+            return Ok(tenderDetails);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tender details for {TenderId}", tenderId);
+            
+            return StatusCode(500, new TenderDetailsDto
+            {
+                TenderId = tenderId,
+                Metadata = new EtimadScraper.Models.MetadataSection
+                {
+                    IsSuccess = false,
+                    ErrorMessage = $"Unexpected error: {ex.Message}",
+                    DataSource = "Error"
+                }
+            });
+        }
     }
 
     /// <summary>

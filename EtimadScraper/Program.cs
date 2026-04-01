@@ -45,6 +45,18 @@ public class Program
         // Register scraper service as scoped (new instance per request)
         builder.Services.AddScoped<EtimadScraperService>();
 
+        // Register HttpClient for TenderDetailsScraperService
+        builder.Services.AddHttpClient("EtimadClient")
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+                AllowAutoRedirect = true,
+                UseCookies = true
+            });
+
+        // Register TenderDetailsScraperService
+        builder.Services.AddScoped<TenderDetailsScraperService>();
+
         var app = builder.Build();
 
         // Enable Swagger in all environments (not just Development)
