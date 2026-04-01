@@ -1,0 +1,197 @@
+{
+  "info": {
+    "name": "Etimad Tender Scraper API",
+    "description": "Collection for testing the Etimad Tender Scraper Web API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Config",
+      "item": [
+        {
+          "name": "Get Status (Health Check)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "status"]
+            },
+            "description": "Check API health and view current configuration"
+          }
+        },
+        {
+          "name": "Get Configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "config"]
+            },
+            "description": "Get detailed scraper configuration"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scraping Operations",
+      "item": [
+        {
+          "name": "Scrape Default (Pages 1-5)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape"]
+            },
+            "description": "Scrape tenders using default configuration (5 pages)"
+          }
+        },
+        {
+          "name": "Scrape Single Page (Page 1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/page/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "page", "1"]
+            },
+            "description": "Scrape a single page (fast test)"
+          }
+        },
+        {
+          "name": "Scrape Single Page (Page 3)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/page/3",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "page", "3"]
+            },
+            "description": "Scrape page 3 specifically"
+          }
+        },
+        {
+          "name": "Scrape Custom Range (Pages 1-3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startPage\": 1,\n  \"endPage\": 3,\n  \"saveToFile\": true,\n  \"outputFileName\": \"tenders_custom.json\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/custom",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "custom"]
+            },
+            "description": "Scrape custom page range with file saving"
+          }
+        },
+        {
+          "name": "Scrape Custom Range (Pages 5-10, No File)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startPage\": 5,\n  \"endPage\": 10,\n  \"saveToFile\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/custom",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "custom"]
+            },
+            "description": "Scrape pages 5-10 without saving to file"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Test Cases",
+      "item": [
+        {
+          "name": "Invalid Range (Start > End)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startPage\": 10,\n  \"endPage\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/custom",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "custom"]
+            },
+            "description": "Test error handling for invalid page range (should return 400)"
+          }
+        },
+        {
+          "name": "Too Many Pages (51 pages)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startPage\": 1,\n  \"endPage\": 51\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/custom",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "custom"]
+            },
+            "description": "Test limit enforcement (should return 400, max 50 pages)"
+          }
+        },
+        {
+          "name": "Invalid Page Number (Page 0)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/TenderScraper/scrape/page/0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "TenderScraper", "scrape", "page", "0"]
+            },
+            "description": "Test invalid page number (should return 400)"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://localhost:7000",
+      "type": "string"
+    }
+  ]
+}
