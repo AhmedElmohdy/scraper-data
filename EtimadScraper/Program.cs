@@ -78,6 +78,15 @@ public class Program
                 options.EnableDetailedErrors();
             }
         });
+
+        // IDbContextFactory is used by SupplierTenderDetailsSyncService so it
+        // can open a fresh DbContext per tender inside a long-running loop.
+        builder.Services.AddDbContextFactory<TenderDbContext>(options =>
+        {
+            options.UseSqlServer(connectionString);
+            if (builder.Environment.IsDevelopment())
+                options.EnableDetailedErrors();
+        }, ServiceLifetime.Scoped);
         builder.Services.AddScoped<EtimadScraperService>();
         builder.Services.AddScoped<TenderPersistenceService>();
         builder.Services.AddScoped<TenderScrapingJobService>();
@@ -109,6 +118,9 @@ public class Program
 
         // ?? Supplier Tender Sync (JSON API) ?????????????????????????????????????
         builder.Services.AddScoped<ISupplierTenderSyncService, SupplierTenderSyncService>();
+
+        // ?? Supplier Tender Details Sync (scrapes detail pages) ?????????????????
+        builder.Services.AddScoped<ISupplierTenderDetailsSyncService, SupplierTenderDetailsSyncService>();
 
         // Singleton state store — shared between the background job (writer)
         // and the status controller (reader).

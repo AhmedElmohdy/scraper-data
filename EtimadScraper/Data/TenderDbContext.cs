@@ -13,6 +13,13 @@ public class TenderDbContext : DbContext
     /// <summary>Tenders fetched from the Etimad supplier-tenders JSON API.</summary>
     public DbSet<SupplierTenderEntity> SupplierTenders => Set<SupplierTenderEntity>();
 
+    // ?? Tender details tables (one row per TenderId per section) ??????????????
+    public DbSet<SupplierTendersDetialsMain> SupplierTendersDetialsMain => Set<SupplierTendersDetialsMain>();
+    public DbSet<SupplierTendersDetialsDates> SupplierTendersDetialsDates => Set<SupplierTendersDetialsDates>();
+    public DbSet<SupplierTendersDetialsRelations> SupplierTendersDetialsRelations => Set<SupplierTendersDetialsRelations>();
+    public DbSet<SupplierTendersDetialsAwarding> SupplierTendersDetialsAwarding => Set<SupplierTendersDetialsAwarding>();
+    public DbSet<SupplierTendersDetialsLocalContent> SupplierTendersDetialsLocalContent => Set<SupplierTendersDetialsLocalContent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -45,6 +52,16 @@ public class TenderDbContext : DbContext
         });
 
         // -----------------------------------------------------------------------
+        // Tender details tables
+        // -----------------------------------------------------------------------
+
+        ConfigureDetailsMain(modelBuilder);
+        ConfigureDetailsDates(modelBuilder);
+        ConfigureDetailsRelations(modelBuilder);
+        ConfigureDetailsAwarding(modelBuilder);
+        ConfigureDetailsLocalContent(modelBuilder);
+
+        // -----------------------------------------------------------------------
         // SupplierTenderEntity – fetched from the Etimad JSON API
         // -----------------------------------------------------------------------
         modelBuilder.Entity<SupplierTenderEntity>(entity =>
@@ -73,6 +90,104 @@ public class TenderDbContext : DbContext
             entity.Property(t => t.FinancialFees).HasColumnType("decimal(18,2)");
             entity.Property(t => t.InvitationCost).HasColumnType("decimal(18,2)");
             entity.Property(t => t.BuyingCost).HasColumnType("decimal(18,2)");
+        });
+    }
+
+    // ?? Details table configurations ?????????????????????????????????????????
+
+    private static void ConfigureDetailsMain(ModelBuilder mb)
+    {
+        mb.Entity<SupplierTendersDetialsMain>(e =>
+        {
+            e.ToTable("SupplierTendersDetialsMain");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TenderId).IsRequired().HasMaxLength(500);
+            e.HasIndex(x => x.TenderId).IsUnique()
+             .HasDatabaseName("IX_SupplierTendersDetialsMain_TenderId");
+            e.Property(x => x.Title).HasMaxLength(2000);
+            e.Property(x => x.TenderNumberIAM).HasMaxLength(500);
+            e.Property(x => x.ReferenceNumber).HasMaxLength(500);
+            e.Property(x => x.Purpose).HasMaxLength(2000);
+            e.Property(x => x.DocumentsValue).HasMaxLength(500);
+            e.Property(x => x.Status).HasMaxLength(500);
+            e.Property(x => x.ContractDuration).HasMaxLength(500);
+            e.Property(x => x.MaintenanceInsurance).HasMaxLength(500);
+            e.Property(x => x.CompetitionType).HasMaxLength(500);
+            e.Property(x => x.Organization).HasMaxLength(1000);
+            e.Property(x => x.RemainingTime).HasMaxLength(500);
+            e.Property(x => x.SubmissionMethod).HasMaxLength(500);
+            e.Property(x => x.InitialGuaranteeRequirements).HasMaxLength(500);
+            e.Property(x => x.InitialGuaranteeTitle).HasMaxLength(500);
+            e.Property(x => x.InitialGuaranteeValue).HasMaxLength(500);
+            e.Property(x => x.FinalGuarantee).HasMaxLength(500);
+        });
+    }
+
+    private static void ConfigureDetailsDates(ModelBuilder mb)
+    {
+        mb.Entity<SupplierTendersDetialsDates>(e =>
+        {
+            e.ToTable("SupplierTendersDetialsDates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TenderId).IsRequired().HasMaxLength(500);
+            e.HasIndex(x => x.TenderId).IsUnique()
+             .HasDatabaseName("IX_SupplierTendersDetialsDates_TenderId");
+            e.Property(x => x.InquiryDeadline).HasMaxLength(500);
+            e.Property(x => x.SubmissionDeadline).HasMaxLength(500);
+            e.Property(x => x.OfferOpeningDate).HasMaxLength(500);
+            e.Property(x => x.TechnicalOfferOpeningDate).HasMaxLength(500);
+            e.Property(x => x.StopPeriod).HasMaxLength(500);
+            e.Property(x => x.ExpectedAwardDate).HasMaxLength(500);
+            e.Property(x => x.ActionStartDate).HasMaxLength(500);
+            e.Property(x => x.QuestionSubmissionStartDate).HasMaxLength(500);
+            e.Property(x => x.MaxQuestionResponseTime).HasMaxLength(500);
+            e.Property(x => x.OpeningPlace).HasMaxLength(1000);
+        });
+    }
+
+    private static void ConfigureDetailsRelations(ModelBuilder mb)
+    {
+        mb.Entity<SupplierTendersDetialsRelations>(e =>
+        {
+            e.ToTable("SupplierTendersDetialsRelations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TenderId).IsRequired().HasMaxLength(500);
+            e.HasIndex(x => x.TenderId).IsUnique()
+             .HasDatabaseName("IX_SupplierTendersDetialsRelations_TenderId");
+            e.Property(x => x.TenderCondition).HasMaxLength(1000);
+            e.Property(x => x.ExecutionLocation).HasMaxLength(1000);
+            e.Property(x => x.Description).HasMaxLength(4000);
+            e.Property(x => x.Category).HasMaxLength(1000);
+            e.Property(x => x.SupplyItemsIncluded).HasMaxLength(500);
+            e.Property(x => x.ConstructionWorks).HasMaxLength(500);
+            e.Property(x => x.MaintenanceAndOperationWorks).HasMaxLength(500);
+        });
+    }
+
+    private static void ConfigureDetailsAwarding(ModelBuilder mb)
+    {
+        mb.Entity<SupplierTendersDetialsAwarding>(e =>
+        {
+            e.ToTable("SupplierTendersDetialsAwarding");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TenderId).IsRequired().HasMaxLength(500);
+            e.HasIndex(x => x.TenderId).IsUnique()
+             .HasDatabaseName("IX_SupplierTendersDetialsAwarding_TenderId");
+            e.Property(x => x.AwardingResultStatus).HasMaxLength(500);
+            e.Property(x => x.AwardingResultMessage).HasMaxLength(4000);
+        });
+    }
+
+    private static void ConfigureDetailsLocalContent(ModelBuilder mb)
+    {
+        mb.Entity<SupplierTendersDetialsLocalContent>(e =>
+        {
+            e.ToTable("SupplierTendersDetialsLocalContent");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TenderId).IsRequired().HasMaxLength(500);
+            e.HasIndex(x => x.TenderId).IsUnique()
+             .HasDatabaseName("IX_SupplierTendersDetialsLocalContent_TenderId");
+            e.Property(x => x.LocalContentRequirements).HasMaxLength(4000);
         });
     }
 }
