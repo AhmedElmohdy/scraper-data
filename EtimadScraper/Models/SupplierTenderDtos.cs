@@ -111,3 +111,53 @@ public class SupplierTenderItemDto
     [JsonPropertyName("currentDateTime")]
     public string? CurrentDateTime { get; set; }
 }
+
+// ---------------------------------------------------------------------------
+// DTOs for GET /api/tenders/list
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// A single supplier tender record returned by the list endpoint.
+/// </summary>
+public class SupplierTenderListItemDto
+{
+    public int Id { get; set; }
+    public int TenderId { get; set; }
+    public string? ReferenceNumber { get; set; }
+    public string? TenderName { get; set; }
+    public string? TenderNumber { get; set; }
+    public string? BranchName { get; set; }
+    public string? AgencyName { get; set; }
+    public string? TenderTypeName { get; set; }
+    public string? SubmitionDate { get; set; }
+    public string? LastEnqueriesDate { get; set; }
+    public string? LastOfferPresentationDate { get; set; }
+    public string? OffersOpeningDate { get; set; }
+    public int? RemainingDays { get; set; }
+    public int? RemainingHours { get; set; }
+    public int? RemainingMins { get; set; }
+    public decimal? FinancialFees { get; set; }
+    public decimal? InvitationCost { get; set; }
+    public decimal? BuyingCost { get; set; }
+}
+
+/// <summary>
+/// Paginated response wrapper for the supplier tenders list endpoint.
+/// </summary>
+public class SupplierTenderListResponse
+{
+    /// <summary>Total number of records matching the applied filters.</summary>
+    public int TotalCount { get; set; }
+
+    /// <summary>Current page number (1-based).</summary>
+    public int Page { get; set; }
+
+    /// <summary>Number of items per page.</summary>
+    public int PageSize { get; set; }
+
+    /// <summary>Total number of pages.</summary>
+    public int TotalPages { get; set; }
+
+    /// <summary>Tender records for the requested page.</summary>
+    public List<SupplierTenderListItemDto> Data { get; set; } = [];
+}
