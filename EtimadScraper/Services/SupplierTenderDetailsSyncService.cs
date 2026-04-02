@@ -127,6 +127,18 @@ public class SupplierTenderDetailsSyncService : ISupplierTenderDetailsSyncServic
                                 i + 1, tenderIds.Count, tenderId);
                             result.TotalInserted++;
                         }
+
+                        // ---------------------------------------------------------------
+                        // 6. Wait 30 seconds before the next iteration (skip after last).
+                        // ---------------------------------------------------------------
+                        //if (i < tenderIds.Count - 1)
+                        //{
+                            _logger.LogInformation(
+                                "[{Index}/{Total}] Waiting {Delay}s before next tender…",
+                                i + 1, tenderIds.Count, DelayBetweenTenders.TotalSeconds);
+
+                            await Task.Delay(DelayBetweenTenders, cancellationToken);
+                        //}
                     }
                 }
                 catch (OperationCanceledException)
@@ -143,17 +155,7 @@ public class SupplierTenderDetailsSyncService : ISupplierTenderDetailsSyncServic
                     result.Errors.Add(errMsg);
                 }
 
-                // ---------------------------------------------------------------
-                // 6. Wait 30 seconds before the next iteration (skip after last).
-                // ---------------------------------------------------------------
-                if (i < tenderIds.Count - 1)
-                {
-                    _logger.LogInformation(
-                        "[{Index}/{Total}] Waiting {Delay}s before next tender…",
-                        i + 1, tenderIds.Count, DelayBetweenTenders.TotalSeconds);
-
-                    await Task.Delay(DelayBetweenTenders, cancellationToken);
-                }
+   
             }
 
             result.Success = result.TotalFailed == 0;

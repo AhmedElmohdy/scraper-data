@@ -26,6 +26,7 @@ public class ScrapingJobController : ControllerBase
     /// Manually trigger the full scraping job (page 1 ? last page).
     /// Returns 409 Conflict if a job is already running.
     /// </summary>
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpPost("run")]
     [ProducesResponseType(typeof(ScrapingJobResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -59,6 +60,7 @@ public class ScrapingJobController : ControllerBase
     /// <summary>
     /// Returns the status of the scraping job (running / last result).
     /// </summary>
+     [ApiExplorerSettings(IgnoreApi = true)]
     [HttpGet("status")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public IActionResult GetStatus()

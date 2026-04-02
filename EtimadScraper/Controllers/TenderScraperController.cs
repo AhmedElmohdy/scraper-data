@@ -33,6 +33,7 @@ public class TenderScraperController : ControllerBase
     /// Get scraper configuration
     /// </summary>
     /// <returns>Current scraper configuration</returns>
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpGet("config")]
     [ProducesResponseType(typeof(ScraperConfiguration), StatusCodes.Status200OK)]
     public IActionResult GetConfiguration()
@@ -44,6 +45,7 @@ public class TenderScraperController : ControllerBase
     /// Start scraping tenders with default configuration
     /// </summary>
     /// <returns>List of scraped tenders</returns>
+     [ApiExplorerSettings(IgnoreApi = true)]
     [HttpPost("scrape")]
     [ProducesResponseType(typeof(ScraperResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -86,6 +88,7 @@ public class TenderScraperController : ControllerBase
     /// </summary>
     /// <param name="request">Scraping request parameters</param>
     /// <returns>List of scraped tenders</returns>
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpPost("scrape/custom")]
     [ProducesResponseType(typeof(ScraperResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -140,6 +143,7 @@ public class TenderScraperController : ControllerBase
     /// <summary>
     /// Get scraping status (health check)
     /// </summary>
+     [ApiExplorerSettings(IgnoreApi = true)]
     [HttpGet("status")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public IActionResult GetStatus()

@@ -62,6 +62,12 @@ public class Program
             .Get<SupplierTenderSyncSettings>() ?? new SupplierTenderSyncSettings();
         builder.Services.AddSingleton(supplierSyncSettings);
 
+        // ?? SupplierTenderDetailsSync settings ??????????????????????????????????????
+        var supplierDetailsSyncSettings = builder.Configuration
+            .GetSection(SupplierTenderDetailsSyncSettings.SectionName)
+            .Get<SupplierTenderDetailsSyncSettings>() ?? new SupplierTenderDetailsSyncSettings();
+        builder.Services.AddSingleton(supplierDetailsSyncSettings);
+
         // ?? SQL Server / EF Core ??????????????????????????????????????????????
         var connectionString = builder.Configuration["Database:ConnectionString"]
             ?? "Server=207.180.213.46;Database=EtimadTenders;User Id=sa;Password=dev_09072023ha$;TrustServerCertificate=True;";
@@ -129,6 +135,15 @@ public class Program
         // Periodic background job — runs every SupplierTenderSync:IntervalHours hours.
         // Disable without code changes by setting SupplierTenderSync:Enabled=false.
         builder.Services.AddHostedService<SupplierTenderSyncBackgroundJob>();
+
+        // Singleton state store for the details-sync job.
+        builder.Services.AddSingleton<ISupplierTenderDetailsJobState, SupplierTenderDetailsJobState>();
+
+        // Register as both its concrete type (for controller injection) AND as IHostedService.
+        builder.Services.AddSingleton<SupplierTenderDetailsSyncBackgroundJob>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<SupplierTenderDetailsSyncBackgroundJob>());
+
 
         var app = builder.Build();
 
