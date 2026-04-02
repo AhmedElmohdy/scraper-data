@@ -107,8 +107,16 @@ public class Program
         // Register TenderDetailsScraperService
         builder.Services.AddScoped<TenderDetailsScraperService>();
 
-        // ?? Supplier Tender Sync (JSON API) ???????????????????????????????????????????
+        // ?? Supplier Tender Sync (JSON API) ?????????????????????????????????????
         builder.Services.AddScoped<ISupplierTenderSyncService, SupplierTenderSyncService>();
+
+        // Singleton state store — shared between the background job (writer)
+        // and the status controller (reader).
+        builder.Services.AddSingleton<ISupplierTenderJobState, SupplierTenderJobState>();
+
+        // Periodic background job — runs every SupplierTenderSync:IntervalHours hours.
+        // Disable without code changes by setting SupplierTenderSync:Enabled=false.
+        builder.Services.AddHostedService<SupplierTenderSyncBackgroundJob>();
 
         var app = builder.Build();
 

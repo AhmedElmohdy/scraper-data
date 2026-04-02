@@ -8,6 +8,12 @@ public class SupplierTenderSyncSettings
 {
     public const string SectionName = "SupplierTenderSync";
 
+    /// <summary>Enables or disables the automatic background sync job.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>How often the background job runs (in hours).</summary>
+    public int IntervalHours { get; set; } = 3;
+
     /// <summary>Base URL of the Etimad supplier tenders endpoint (no query string).</summary>
     public string BaseUrl { get; set; } =
         "https://tenders.etimad.sa/Tender/AllSupplierTendersForVisitorAsync";
