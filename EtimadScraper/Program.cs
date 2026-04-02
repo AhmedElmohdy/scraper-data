@@ -2,6 +2,7 @@ using EtimadScraper.Configuration;
 using EtimadScraper.Data;
 using EtimadScraper.Jobs;
 using EtimadScraper.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 namespace EtimadScraper;
@@ -164,7 +165,13 @@ public class Program
             c.RoutePrefix = "swagger"; // Access at /swagger
         });
 
-        app.UseHttpsRedirection();
+        // Forward headers from IIS reverse proxy (X-Forwarded-For, X-Forwarded-Proto).
+        // This must come before any middleware that depends on the scheme or remote IP.
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
         app.UseAuthorization();
         app.MapControllers();
 

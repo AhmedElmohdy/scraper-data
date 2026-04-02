@@ -30,6 +30,8 @@ tenders.json
 
 # Logs
 *.log
+logs/*.log
+logs/stdout*
 
 # NuGet
 *.nupkg
