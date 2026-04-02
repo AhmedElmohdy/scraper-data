@@ -11,7 +11,7 @@ namespace EtimadScraper.Services;
 
 /// <summary>
 /// Fetches all tenders from the Etimad supplier-tenders JSON API and
-/// upserts them into the <c>SupplierTenders</c> SQL Server table.
+/// inserts new records into the <c>SupplierTenders</c> SQL Server table.
 ///
 /// Key behaviours:
 /// • Uses <see cref="IHttpClientFactory"/> (named client "EtimadClient").
@@ -21,6 +21,8 @@ namespace EtimadScraper.Services;
 /// • Continues to the next page if a single page fails (per-page try/catch).
 /// • Stops early after <see cref="SupplierTenderSyncSettings.MaxConsecutiveEmptyPages"/>
 ///   consecutive empty pages.
+/// • Stops pagination immediately when any TenderId on the current page already exists
+///   in the DB — existing data is never modified.
 /// • Calls SaveChangesAsync once per page (EF Core bulk save pattern).
 /// </summary>
 public class SupplierTenderSyncService : ISupplierTenderSyncService
@@ -131,17 +133,28 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
                     consecutiveEmpty = 0;
                     result.TotalFetched += items.Count;
 
-                    // Upsert the current page into SQL Server.
-                    var (inserted, updated, failed) =
-                        await UpsertPageAsync(items, cancellationToken);
+                    // Insert new tenders from the current page into SQL Server.
+                    var (inserted, skipped, failed, hitExisting) =
+                        await InsertPageAsync(items, cancellationToken);
 
                     result.TotalInserted += inserted;
-                    result.TotalUpdated  += updated;
                     result.TotalFailed   += failed;
 
                     _logger.LogInformation(
-                        "Page {Page} saved — inserted={I}, updated={U}, failed={F}",
-                        pageNumber, inserted, updated, failed);
+                        "Page {Page} saved — inserted={I}, skippedExisting={S}, failed={F}",
+                        pageNumber, inserted, skipped, failed);
+
+                    // Stop pagination as soon as we encounter a TenderId that is already
+                    // in the DB — everything further back is assumed to be stored already.
+                    if (hitExisting)
+                    {
+                        _logger.LogInformation(
+                            "Page {Page} contains existing TenderIds — stopping pagination.",
+                            pageNumber);
+                        result.TotalPagesProcessed++;
+                        pageNumber++;
+                        break;
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -164,11 +177,9 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
             result.Success = result.TotalFailedPages == 0;
             result.Message = result.Success
                 ? $"Sync completed. Pages={result.TotalPagesProcessed}, " +
-                  $"Fetched={result.TotalFetched}, Inserted={result.TotalInserted}, " +
-                  $"Updated={result.TotalUpdated}."
+                  $"Fetched={result.TotalFetched}, Inserted={result.TotalInserted}."
                 : $"Sync completed with {result.TotalFailedPages} failed page(s). " +
-                  $"Pages={result.TotalPagesProcessed}, Inserted={result.TotalInserted}, " +
-                  $"Updated={result.TotalUpdated}.";
+                  $"Pages={result.TotalPagesProcessed}, Inserted={result.TotalInserted}.";
         }
         catch (OperationCanceledException)
         {
@@ -242,29 +253,35 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
     }
 
     /// <summary>
-    /// Upserts a list of API tender items into the SupplierTenders table.
-    /// Loads existing rows by <c>TenderId</c> in a single query, then
-    /// adds new entities or updates existing ones before calling
-    /// <see cref="DbContext.SaveChangesAsync"/>.
+    /// Inserts only new tender items from a single API page into the SupplierTenders table.
+    /// Existing rows are skipped without modification.
+    /// A single batch <c>Contains</c> query is used to identify which IDs already exist.
     /// </summary>
-    /// <returns>Tuple of (inserted, updated, failed) counts.</returns>
-    private async Task<(int Inserted, int Updated, int Failed)> UpsertPageAsync(
+    /// <returns>
+    /// Tuple of (inserted, skipped, failed, hitExisting) where
+    /// <c>hitExisting</c> is <see langword="true"/> when at least one TenderId on this
+    /// page was already present in the DB — the caller should stop pagination.
+    /// </returns>
+    private async Task<(int Inserted, int Skipped, int Failed, bool HitExisting)> InsertPageAsync(
         List<SupplierTenderItemDto> items,
         CancellationToken cancellationToken)
     {
-        int inserted = 0, updated = 0, failed = 0;
+        int inserted = 0, skipped = 0, failed = 0;
 
-        // Collect all tender IDs on this page for a single DB lookup.
+        // Collect all valid tender IDs on this page for a single batch DB lookup.
         var incomingIds = items
             .Where(i => i.TenderId > 0)
             .Select(i => i.TenderId)
             .Distinct()
             .ToList();
 
-        // Load only the rows we might update – avoids a full table scan.
-        var existingMap = await _db.SupplierTenders
+        // One round-trip: fetch only the IDs that already exist (no entity tracking needed).
+        var existingIds = await _db.SupplierTenders
             .Where(e => incomingIds.Contains(e.TenderId))
-            .ToDictionaryAsync(e => e.TenderId, cancellationToken);
+            .Select(e => e.TenderId)
+            .ToHashSetAsync(cancellationToken);
+
+        bool hitExisting = existingIds.Count > 0;
 
         foreach (var item in items)
         {
@@ -278,34 +295,31 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
                 continue;
             }
 
+            if (existingIds.Contains(item.TenderId))
+            {
+                // Already in DB – skip without touching the row.
+                skipped++;
+                continue;
+            }
+
             try
             {
-                if (existingMap.TryGetValue(item.TenderId, out var existing))
-                {
-                    // Update the existing row with the latest data from the API.
-                    ApplyUpdate(existing, item);
-                    updated++;
-                }
-                else
-                {
-                    // Insert a new row.
-                    var entity = MapToEntity(item);
-                    _db.SupplierTenders.Add(entity);
-                    inserted++;
-                }
+                _db.SupplierTenders.Add(MapToEntity(item));
+                inserted++;
             }
             catch (Exception ex)
             {
                 failed++;
                 _logger.LogError(ex,
-                    "Failed to prepare upsert for TenderId={Id}", item.TenderId);
+                    "Failed to prepare insert for TenderId={Id}", item.TenderId);
             }
         }
 
-        // Persist the entire page in one round-trip (EF Core bulk save pattern).
-        await _db.SaveChangesAsync(cancellationToken);
+        // Persist all new rows in one round-trip (EF Core bulk save pattern).
+        if (inserted > 0)
+            await _db.SaveChangesAsync(cancellationToken);
 
-        return (inserted, updated, failed);
+        return (inserted, skipped, failed, hitExisting);
     }
 
     /// <summary>Maps a DTO to a new <see cref="SupplierTenderEntity"/>.</summary>
@@ -336,33 +350,6 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
         FirstSyncedAt             = DateTime.UtcNow,
         LastSyncedAt              = DateTime.UtcNow
     };
-
-    /// <summary>Copies the latest API data onto an existing <see cref="SupplierTenderEntity"/>.</summary>
-    private static void ApplyUpdate(SupplierTenderEntity entity, SupplierTenderItemDto dto)
-    {
-        entity.ReferenceNumber           = dto.ReferenceNumber;
-        entity.TenderName                = dto.TenderName;
-        entity.TenderNumber              = dto.TenderNumber;
-        entity.BranchName                = dto.BranchName;
-        entity.AgencyName                = dto.AgencyName;
-        entity.TenderIdString            = dto.TenderIdString;
-        entity.TenderStatusId            = dto.TenderStatusId;
-        entity.TenderTypeId              = dto.TenderTypeId;
-        entity.TenderTypeName            = dto.TenderTypeName;
-        entity.LastEnqueriesDate         = dto.LastEnqueriesDate;
-        entity.LastOfferPresentationDate = dto.LastOfferPresentationDate;
-        entity.OffersOpeningDate         = dto.OffersOpeningDate;
-        entity.TenderActivityId          = dto.TenderActivityId;
-        entity.SubmitionDate             = dto.SubmitionDate;
-        entity.FinancialFees             = dto.FinancialFees;
-        entity.InvitationCost            = dto.InvitationCost;
-        entity.BuyingCost                = dto.BuyingCost;
-        entity.RemainingDays             = dto.RemainingDays;
-        entity.RemainingHours            = dto.RemainingHours;
-        entity.RemainingMins             = dto.RemainingMins;
-        entity.CurrentDateTime           = dto.CurrentDateTime;
-        entity.LastSyncedAt              = DateTime.UtcNow;
-    }
 
     /// <summary>
     /// Builds a Polly retry pipeline for transient HTTP and I/O errors.
