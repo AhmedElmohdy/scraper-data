@@ -161,3 +161,86 @@ public class SupplierTenderListResponse
     /// <summary>Tender records for the requested page.</summary>
     public List<SupplierTenderListItemDto> Data { get; set; } = [];
 }
+
+// ---------------------------------------------------------------------------
+// DTOs for GET /api/supplier-tenders/details/{tenderId}
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Aggregated response containing all five detail sections for a single tender.
+/// </summary>
+public class SupplierTenderDetailsResponse
+{
+    public string TenderId { get; set; } = string.Empty;
+    public SupplierTenderMainDto? Main { get; set; }
+    public SupplierTenderDatesDto? Dates { get; set; }
+    public SupplierTenderRelationsDto? Relations { get; set; }
+    public SupplierTenderAwardingDto? Awarding { get; set; }
+    public SupplierTenderLocalContentDto? LocalContent { get; set; }
+}
+
+public class SupplierTenderMainDto
+{
+    public int Id { get; set; }
+    public string? Title { get; set; }
+    public string? TenderNumberIAM { get; set; }
+    public string? ReferenceNumber { get; set; }
+    public string? Purpose { get; set; }
+    public string? DocumentsValue { get; set; }
+    public string? Status { get; set; }
+    public string? ContractDuration { get; set; }
+    public string? MaintenanceInsurance { get; set; }
+    public string? CompetitionType { get; set; }
+    public string? Organization { get; set; }
+    public string? RemainingTime { get; set; }
+    public string? SubmissionMethod { get; set; }
+    public string? InitialGuaranteeRequirements { get; set; }
+    public string? InitialGuaranteeTitle { get; set; }
+    public string? InitialGuaranteeValue { get; set; }
+    public string? FinalGuarantee { get; set; }
+    public DateTime ScrapedAt { get; set; }
+}
+
+public class SupplierTenderDatesDto
+{
+    public int Id { get; set; }
+    public string? InquiryDeadline { get; set; }
+    public string? SubmissionDeadline { get; set; }
+    public string? OfferOpeningDate { get; set; }
+    public string? TechnicalOfferOpeningDate { get; set; }
+    public string? StopPeriod { get; set; }
+    public string? ExpectedAwardDate { get; set; }
+    public string? ActionStartDate { get; set; }
+    public string? QuestionSubmissionStartDate { get; set; }
+    public string? MaxQuestionResponseTime { get; set; }
+    public string? OpeningPlace { get; set; }
+    public DateTime ScrapedAt { get; set; }
+}
+
+public class SupplierTenderRelationsDto
+{
+    public int Id { get; set; }
+    public string? TenderCondition { get; set; }
+    public string? ExecutionLocation { get; set; }
+    public string? Description { get; set; }
+    public string? Category { get; set; }
+    public string? SupplyItemsIncluded { get; set; }
+    public string? ConstructionWorks { get; set; }
+    public string? MaintenanceAndOperationWorks { get; set; }
+    public DateTime ScrapedAt { get; set; }
+}
+
+public class SupplierTenderAwardingDto
+{
+    public int Id { get; set; }
+    public string? AwardingResultStatus { get; set; }
+    public string? AwardingResultMessage { get; set; }
+    public DateTime ScrapedAt { get; set; }
+}
+
+public class SupplierTenderLocalContentDto
+{
+    public int Id { get; set; }
+    public string? LocalContentRequirements { get; set; }
+    public DateTime ScrapedAt { get; set; }
+}

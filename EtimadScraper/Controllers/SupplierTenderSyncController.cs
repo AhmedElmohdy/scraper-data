@@ -14,7 +14,7 @@ namespace EtimadScraper.Controllers;
 /// GET  /api/tenders/list
 /// </summary>
 [ApiController]
-[Route("api/tenders")]
+[Route("api/tenders-integration")]
 public class SupplierTenderSyncController : ControllerBase
 {
     private readonly ISupplierTenderSyncService _syncService;
@@ -71,7 +71,7 @@ public class SupplierTenderSyncController : ControllerBase
     /// </summary>
     /// <param name="page">Page number, 1-based (default: 1).</param>
     /// <param name="pageSize">Number of records per page (default: 10, max: 100).</param>
-    /// <param name="tenderName">Optional filter – partial match on TenderName.</param>
+    /// <param name="tenderName">Optional filter – partial match on TenderName.</param> 
     /// <param name="branchName">Optional filter – partial match on BranchName.</param>
     /// <param name="agencyName">Optional filter – partial match on AgencyName.</param>
     /// <param name="cancellationToken">Standard ASP.NET Core cancellation token.</param>
