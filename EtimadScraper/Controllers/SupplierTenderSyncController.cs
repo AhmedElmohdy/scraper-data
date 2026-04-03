@@ -87,6 +87,54 @@ public class SupplierTenderSyncController : ControllerBase
     }
 
     /// <summary>
+    /// Returns three counts of supplier tenders from the local database,
+    /// grouped by SubmitionDate: today, yesterday, and the last 7 days.
+    /// </summary>
+    /// <param name="cancellationToken">Standard ASP.NET Core cancellation token.</param>
+    [HttpGet("counts")]
+    [ProducesResponseType(typeof(SupplierTenderCountSummaryDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Counts(CancellationToken cancellationToken)
+    {
+        var today     = DateTime.UtcNow.Date;
+        var yesterday = today.AddDays(-1);
+        var sevenDaysAgo = today.AddDays(-6);
+
+        var rows = await _db.SupplierTenders
+            .AsNoTracking()
+            .Where(t => t.SubmitionDate != null)
+            .Select(t => t.SubmitionDate!)
+            .ToListAsync(cancellationToken);
+
+        int todayCount     = 0;
+        int yesterdayCount = 0;
+        int last7DaysCount = 0;
+
+        foreach (var raw in rows)
+        {
+            if (!DateTime.TryParse(raw, out var parsed))
+                continue;
+
+            var date = parsed.Date;
+
+            if (date == today)
+                todayCount++;
+
+            if (date == yesterday)
+                yesterdayCount++;
+
+            if (date >= sevenDaysAgo && date <= today)
+                last7DaysCount++;
+        }
+
+        return Ok(new SupplierTenderCountSummaryDto
+        {
+            TodayCount     = todayCount,
+            YesterdayCount = yesterdayCount,
+            Last7DaysCount = last7DaysCount,
+        });
+    }
+
+    /// <summary>
     /// Returns a paginated list of supplier tenders from the local database,
     /// sorted by SubmitionDate descending.
     ///

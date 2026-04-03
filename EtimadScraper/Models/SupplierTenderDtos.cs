@@ -236,6 +236,21 @@ public class SupplierTenderListResponse
     public List<SupplierTenderListItemDto> Data { get; set; } = [];
 }
 
+/// <summary>
+/// Summary counts of supplier tenders grouped by submission date period.
+/// </summary>
+public class SupplierTenderCountSummaryDto
+{
+    /// <summary>Number of tenders with a SubmitionDate of today.</summary>
+    public int TodayCount { get; set; }
+
+    /// <summary>Number of tenders with a SubmitionDate of yesterday.</summary>
+    public int YesterdayCount { get; set; }
+
+    /// <summary>Number of tenders with a SubmitionDate within the last 7 days (inclusive).</summary>
+    public int Last7DaysCount { get; set; }
+}
+
 // ---------------------------------------------------------------------------
 // DTOs for GET /api/supplier-tenders/details/{tenderId}
 // ---------------------------------------------------------------------------
