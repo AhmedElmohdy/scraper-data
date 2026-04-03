@@ -213,6 +213,17 @@ public class SupplierTenderListItemDto
 
     /// <summary>URL for submitting a UGRP RFX response.</summary>
     public string? UgrpRFXResponseURL { get; set; }
+
+    // ?? AI Evaluation ????????????????????????????????????????????????????????
+
+    /// <summary>AI-assigned matching score (0–100).</summary>
+    public decimal? MatchingScore { get; set; }
+
+    /// <summary>Short AI-generated reason for the matching score.</summary>
+    public string? MatchingReason { get; set; }
+
+    /// <summary>Whether this tender has been evaluated by the AI scoring service.</summary>
+    public bool? Evaluated { get; set; }
 }
 
 /// <summary>

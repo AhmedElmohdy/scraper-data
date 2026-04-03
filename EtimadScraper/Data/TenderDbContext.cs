@@ -98,6 +98,8 @@ public class TenderDbContext : DbContext
             entity.Property(t => t.CondetionalBookletPrice).HasColumnType("decimal(18,2)");
             entity.Property(t => t.UgrpRfxUrl).HasMaxLength(2000);
             entity.Property(t => t.UgrpRFXResponseURL).HasMaxLength(2000);
+            entity.Property(t => t.MatchingScore).HasColumnType("decimal(5,2)");
+            entity.Property(t => t.MatchingReason).HasMaxLength(2000);
         });
     }
 

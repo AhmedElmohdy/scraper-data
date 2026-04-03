@@ -209,6 +209,9 @@ public class SupplierTenderSyncController : ControllerBase
                 IsUGRP                          = t.IsUGRP,
                 UgrpRfxUrl                      = t.UgrpRfxUrl,
                 UgrpRFXResponseURL              = t.UgrpRFXResponseURL,
+                MatchingScore                   = t.MatchingScore,
+                MatchingReason                  = t.MatchingReason,
+                Evaluated                       = t.Evaluated,
             })
             .ToListAsync(cancellationToken);
 

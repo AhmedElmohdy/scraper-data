@@ -108,6 +108,22 @@ public class SupplierTenderEntity
     public string? UgrpRFXResponseURL { get; set; }
 
     // ------------------------------------------------------------------
+    // AI Evaluation
+    // ------------------------------------------------------------------
+
+    /// <summary>AI-assigned matching score (0–100) against the company profile.</summary>
+    public decimal? MatchingScore { get; set; }
+
+    /// <summary>Short AI-generated explanation of why the score was assigned.</summary>
+    public string? MatchingReason { get; set; }
+
+    /// <summary>
+    /// Whether this tender has been evaluated by the AI scoring service.
+    /// <see langword="null"/> or <see langword="false"/> means not yet evaluated.
+    /// </summary>
+    public bool? Evaluated { get; set; }
+
+    // ------------------------------------------------------------------
     // Audit
     // ------------------------------------------------------------------
 

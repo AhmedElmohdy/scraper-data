@@ -77,6 +77,12 @@ public class Program
             .Get<SupplierTenderDetailsSyncSettings>() ?? new SupplierTenderDetailsSyncSettings();
         builder.Services.AddSingleton(supplierDetailsSyncSettings);
 
+        // ?? TenderEvaluation settings ???????????????????????????????????????????????
+        var tenderEvaluationSettings = builder.Configuration
+            .GetSection(TenderEvaluationSettings.SectionName)
+            .Get<TenderEvaluationSettings>() ?? new TenderEvaluationSettings();
+        builder.Services.AddSingleton(tenderEvaluationSettings);
+
         // ?? SQL Server / EF Core ??????????????????????????????????????????????
         var connectionString = builder.Configuration["Database:ConnectionString"]
             ?? "Server=207.180.213.46;Database=EtimadTenders;User Id=sa;Password=dev_09072023ha$;TrustServerCertificate=True;";
@@ -117,6 +123,13 @@ public class Program
         // BrowserHeadersHandler adds realistic browser headers to every request so that
         // the Etimad F5 WAF does not serve a bot-challenge page instead of JSON.
         builder.Services.AddTransient<BrowserHeadersHandler>();
+
+        // Named HttpClient for OpenRouter AI API calls (no browser headers handler needed).
+        builder.Services.AddHttpClient("OpenRouterClient", client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(5);
+        });
+
         builder.Services.AddHttpClient("EtimadClient")
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
@@ -152,6 +165,13 @@ public class Program
         builder.Services.AddSingleton<SupplierTenderDetailsSyncBackgroundJob>();
         builder.Services.AddHostedService(sp =>
             sp.GetRequiredService<SupplierTenderDetailsSyncBackgroundJob>());
+
+        // ?? AI Tender Evaluation ?????????????????????????????????????????????????
+        builder.Services.AddScoped<ITenderEvaluationService, TenderEvaluationService>();
+        builder.Services.AddSingleton<ITenderEvaluationJobState, TenderEvaluationJobState>();
+        builder.Services.AddSingleton<TenderEvaluationBackgroundJob>();
+        builder.Services.AddHostedService(sp =>
+            sp.GetRequiredService<TenderEvaluationBackgroundJob>());
 
 
         var app = builder.Build();
