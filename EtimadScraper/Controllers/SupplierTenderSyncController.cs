@@ -111,7 +111,7 @@ public class SupplierTenderSyncController : ControllerBase
             .Select(t => new SupplierTenderListItemDto
             {
                 Id                        = t.Id,
-                TenderId                  = t.TenderId,
+                TenderId                  = t.TenderIdString,
                 ReferenceNumber           = t.ReferenceNumber,
                 TenderName                = t.TenderName,
                 TenderNumber              = t.TenderNumber,

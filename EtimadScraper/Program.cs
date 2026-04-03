@@ -19,6 +19,14 @@ public class Program
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 
         // Add services to the container
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("FrontendPolicy", policy =>
+                policy.WithOrigins("http://localhost:4200")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod());
+        });
+
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         
@@ -172,6 +180,7 @@ public class Program
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
 
+        app.UseCors("FrontendPolicy");
         app.UseAuthorization();
         app.MapControllers();
 

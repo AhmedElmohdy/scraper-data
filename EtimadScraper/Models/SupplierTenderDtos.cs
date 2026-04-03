@@ -122,7 +122,7 @@ public class SupplierTenderItemDto
 public class SupplierTenderListItemDto
 {
     public int Id { get; set; }
-    public int TenderId { get; set; }
+    public string? TenderId { get; set; }
     public string? ReferenceNumber { get; set; }
     public string? TenderName { get; set; }
     public string? TenderNumber { get; set; }
