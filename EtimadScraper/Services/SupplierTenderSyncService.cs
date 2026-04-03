@@ -211,6 +211,145 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
     }
 
     // -----------------------------------------------------------------------
+    // Update-all (refreshes existing rows, inserts new ones)
+    // -----------------------------------------------------------------------
+
+    /// <inheritdoc/>
+    public async Task<SupplierTenderSyncResult> UpdateAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var result = new SupplierTenderSyncResult { StartedAt = DateTime.UtcNow };
+
+        _logger.LogInformation(
+            "=== SupplierTenderUpdateAll started. BaseUrl={Url}, PageSize={Size}, PublishDateId={DateId} ===",
+            _settings.BaseUrl, _settings.PageSize, _settings.PublishDateId);
+
+        var retryPipeline = BuildRetryPipeline();
+
+        int pageNumber       = 1;
+        int totalPages       = 1;
+        int consecutiveEmpty = 0;
+
+        try
+        {
+            while (pageNumber <= totalPages && !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation(
+                    "--- UpdateAll: fetching page {Page}/{Total} ---", pageNumber, totalPages);
+
+                // 30-second delay between every request (skip before page 1).
+                if (pageNumber > 1)
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+
+                try
+                {
+                    var response = await retryPipeline.ExecuteAsync(
+                        async ct => await FetchPageAsync(pageNumber, ct),
+                        cancellationToken);
+
+                    if (pageNumber == 1 && response != null && response.TotalCount > 0)
+                    {
+                        totalPages = (int)Math.Ceiling(
+                            (double)response.TotalCount / _settings.PageSize);
+
+                        _logger.LogInformation(
+                            "UpdateAll: TotalTenders={Total}, PageSize={Size} → TotalPages={Pages}",
+                            response.TotalCount, _settings.PageSize, totalPages);
+                    }
+
+                    var items = response?.Data;
+
+                    if (items == null || items.Count == 0)
+                    {
+                        _logger.LogWarning(
+                            "UpdateAll: page {Page} returned no data. ConsecutiveEmpty={Count}",
+                            pageNumber, consecutiveEmpty + 1);
+
+                        consecutiveEmpty++;
+
+                        if (consecutiveEmpty >= _settings.MaxConsecutiveEmptyPages)
+                        {
+                            _logger.LogWarning(
+                                "UpdateAll: reached {Max} consecutive empty pages – stopping.",
+                                _settings.MaxConsecutiveEmptyPages);
+                            break;
+                        }
+
+                        result.TotalPagesProcessed++;
+                        pageNumber++;
+                        continue;
+                    }
+
+                    consecutiveEmpty = 0;
+                    result.TotalFetched += items.Count;
+
+                    _logger.LogInformation(
+                        "UpdateAll page {Page}: received {Count} tenders.", pageNumber, items.Count);
+
+                    var (inserted, updated, failed) =
+                        await UpsertPageAsync(items, cancellationToken);
+
+                    result.TotalInserted += inserted;
+                    result.TotalUpdated  += updated;
+                    result.TotalFailed   += failed;
+
+                    _logger.LogInformation(
+                        "UpdateAll page {Page} saved — inserted={I}, updated={U}, failed={F}",
+                        pageNumber, inserted, updated, failed);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    result.TotalFailedPages++;
+                    var msg = $"UpdateAll page {pageNumber} failed: {ex.Message}";
+                    result.Errors.Add(msg);
+                    _logger.LogError(ex, "UpdateAll error on page {Page}. Continuing…", pageNumber);
+                }
+
+                result.TotalPagesProcessed++;
+                pageNumber++;
+            }
+
+            result.Success = result.TotalFailedPages == 0;
+            result.Message = result.Success
+                ? $"UpdateAll completed. Pages={result.TotalPagesProcessed}, " +
+                  $"Fetched={result.TotalFetched}, Inserted={result.TotalInserted}, Updated={result.TotalUpdated}."
+                : $"UpdateAll completed with {result.TotalFailedPages} failed page(s). " +
+                  $"Pages={result.TotalPagesProcessed}, Inserted={result.TotalInserted}, Updated={result.TotalUpdated}.";
+        }
+        catch (OperationCanceledException)
+        {
+            result.Success = false;
+            result.Message = "UpdateAll was cancelled by the caller.";
+            _logger.LogWarning("SupplierTenderUpdateAll was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = $"UpdateAll failed with unexpected error: {ex.Message}";
+            result.Errors.Add(ex.ToString());
+            _logger.LogCritical(ex, "Unexpected fatal error in SupplierTenderUpdateAll.");
+        }
+        finally
+        {
+            result.CompletedAt = DateTime.UtcNow;
+
+            _logger.LogInformation(
+                "=== SupplierTenderUpdateAll finished. Success={Success}, Duration={Duration}, " +
+                "Pages={Pages}, Fetched={Fetched}, Inserted={Inserted}, Updated={Updated}, " +
+                "Failed={Failed}, FailedPages={FailedPages} ===",
+                result.Success, result.Duration, result.TotalPagesProcessed,
+                result.TotalFetched, result.TotalInserted, result.TotalUpdated,
+                result.TotalFailed, result.TotalFailedPages);
+        }
+
+        return result;
+    }
+
+    // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
 
@@ -320,6 +459,98 @@ public class SupplierTenderSyncService : ISupplierTenderSyncService
             await _db.SaveChangesAsync(cancellationToken);
 
         return (inserted, skipped, failed, hitExisting);
+    }
+
+    /// <summary>
+    /// Upserts tender items from a single API page: updates existing rows and
+    /// inserts new ones. All changes are persisted in one <c>SaveChangesAsync</c> call.
+    /// </summary>
+    /// <returns>Tuple of (inserted, updated, failed).</returns>
+    private async Task<(int Inserted, int Updated, int Failed)> UpsertPageAsync(
+        List<SupplierTenderItemDto> items,
+        CancellationToken cancellationToken)
+    {
+        int inserted = 0, updated = 0, failed = 0;
+
+        var incomingIds = items
+            .Where(i => i.TenderId > 0)
+            .Select(i => i.TenderId)
+            .Distinct()
+            .ToList();
+
+        // Fetch existing entities (tracked) so EF Core can detect changes.
+        var existingEntities = await _db.SupplierTenders
+            .Where(e => incomingIds.Contains(e.TenderId))
+            .ToDictionaryAsync(e => e.TenderId, cancellationToken);
+
+        foreach (var item in items)
+        {
+            if (item.TenderId <= 0)
+            {
+                _logger.LogWarning(
+                    "UpsertPage: skipping tender with TenderId=0 (ReferenceNumber={Ref})",
+                    item.ReferenceNumber ?? "N/A");
+                failed++;
+                continue;
+            }
+
+            try
+            {
+                if (existingEntities.TryGetValue(item.TenderId, out var existing))
+                {
+                    // Update all mutable fields on the tracked entity.
+                    existing.ReferenceNumber                = item.ReferenceNumber;
+                    existing.TenderName                     = item.TenderName;
+                    existing.TenderNumber                   = item.TenderNumber;
+                    existing.BranchName                     = item.BranchName;
+                    existing.AgencyName                     = item.AgencyName;
+                    existing.TenderIdString                 = item.TenderIdString;
+                    existing.TenderStatusId                 = item.TenderStatusId;
+                    existing.TenderStatusName               = item.TenderStatusName;
+                    existing.TenderStatusIdString           = item.TenderStatusIdString;
+                    existing.TenderTypeId                   = item.TenderTypeId;
+                    existing.TenderTypeName                 = item.TenderTypeName;
+                    existing.LastEnqueriesDate              = item.LastEnqueriesDate;
+                    existing.LastEnqueriesDateHijri         = item.LastEnqueriesDateHijri;
+                    existing.LastOfferPresentationDate      = item.LastOfferPresentationDate;
+                    existing.LastOfferPresentationDateHijri = item.LastOfferPresentationDateHijri;
+                    existing.OffersOpeningDate              = item.OffersOpeningDate;
+                    existing.OffersOpeningDateHijri         = item.OffersOpeningDateHijri;
+                    existing.TenderActivityId               = item.TenderActivityId;
+                    existing.SubmitionDate                  = item.SubmitionDate;
+                    existing.FinancialFees                  = item.FinancialFees;
+                    existing.InvitationCost                 = item.InvitationCost;
+                    existing.BuyingCost                     = item.BuyingCost;
+                    existing.CondetionalBookletPrice        = item.CondetionalBookletPrice;
+                    existing.RemainingDays                  = item.RemainingDays;
+                    existing.RemainingHours                 = item.RemainingHours;
+                    existing.RemainingMins                  = item.RemainingMins;
+                    existing.CurrentDateTime                = item.CurrentDateTime;
+                    existing.HasInvitations                 = item.HasInvitations;
+                    existing.IsUGRP                         = item.IsUGRP;
+                    existing.UgrpRfxUrl                     = item.UgrpRfxUrl;
+                    existing.UgrpRFXResponseURL             = item.UgrpRFXResponseURL;
+                    existing.LastSyncedAt                   = DateTime.UtcNow;
+                    updated++;
+                }
+                else
+                {
+                    _db.SupplierTenders.Add(MapToEntity(item));
+                    inserted++;
+                }
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                _logger.LogError(ex,
+                    "UpsertPage: failed to prepare upsert for TenderId={Id}", item.TenderId);
+            }
+        }
+
+        if (inserted > 0 || updated > 0)
+            await _db.SaveChangesAsync(cancellationToken);
+
+        return (inserted, updated, failed);
     }
 
     /// <summary>Maps a DTO to a new <see cref="SupplierTenderEntity"/>.</summary>

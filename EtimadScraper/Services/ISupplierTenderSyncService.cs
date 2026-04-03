@@ -14,4 +14,12 @@ public interface ISupplierTenderSyncService
     /// </summary>
     /// <param name="cancellationToken">Token to cancel a long-running sync.</param>
     Task<SupplierTenderSyncResult> SyncAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetches every page from the Etimad supplier-tenders API and updates all
+    /// existing rows in the <c>SupplierTenders</c> table, inserting any new ones.
+    /// Uses a 30-second delay between requests.
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel a long-running update.</param>
+    Task<SupplierTenderSyncResult> UpdateAllAsync(CancellationToken cancellationToken = default);
 }

@@ -64,6 +64,29 @@ public class SupplierTenderSyncController : ControllerBase
     }
 
     /// <summary>
+    /// Fetches every page from the Etimad supplier-tenders API (30-second delay
+    /// between requests) and updates all existing rows, inserting any new ones.
+    ///
+    /// Unlike <c>POST /sync</c>, this endpoint never stops early when it encounters
+    /// an already-known TenderId — it refreshes the entire dataset.
+    /// </summary>
+    /// <param name="cancellationToken">Standard ASP.NET Core request cancellation token.</param>
+    [HttpPost("update-all")]
+    [ProducesResponseType(typeof(SupplierTenderSyncResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(SupplierTenderSyncResult), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UpdateAll(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "POST /api/tenders-integration/update-all received – starting full update.");
+
+        var result = await _syncService.UpdateAllAsync(cancellationToken);
+
+        return result.Success
+            ? Ok(result)
+            : StatusCode(StatusCodes.Status500InternalServerError, result);
+    }
+
+    /// <summary>
     /// Returns a paginated list of supplier tenders from the local database,
     /// sorted by SubmitionDate descending.
     ///
