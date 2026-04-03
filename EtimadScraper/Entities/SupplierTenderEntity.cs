@@ -124,6 +124,13 @@ public class SupplierTenderEntity
     public bool? Evaluated { get; set; }
 
     // ------------------------------------------------------------------
+    // Workflow
+    // ------------------------------------------------------------------
+
+    /// <summary>Internal workflow status (e.g. "pending", "reviewed", "approved").</summary>
+    public string? InOutStatus { get; set; } = "pending";
+
+    // ------------------------------------------------------------------
     // Audit
     // ------------------------------------------------------------------
 

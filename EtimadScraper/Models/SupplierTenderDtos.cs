@@ -224,6 +224,9 @@ public class SupplierTenderListItemDto
 
     /// <summary>Whether this tender has been evaluated by the AI scoring service.</summary>
     public bool? Evaluated { get; set; }
+
+    /// <summary>Internal workflow status (e.g. "pending", "reviewed", "approved").</summary>
+    public string? InOutStatus { get; set; }
 }
 
 /// <summary>

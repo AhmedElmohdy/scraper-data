@@ -212,6 +212,7 @@ public class SupplierTenderSyncController : ControllerBase
                 MatchingScore                   = t.MatchingScore,
                 MatchingReason                  = t.MatchingReason,
                 Evaluated                       = t.Evaluated,
+                InOutStatus                     = t.InOutStatus,
             })
             .ToListAsync(cancellationToken);
 

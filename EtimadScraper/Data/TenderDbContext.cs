@@ -100,6 +100,7 @@ public class TenderDbContext : DbContext
             entity.Property(t => t.UgrpRFXResponseURL).HasMaxLength(2000);
             entity.Property(t => t.MatchingScore).HasColumnType("decimal(5,2)");
             entity.Property(t => t.MatchingReason).HasMaxLength(2000);
+            entity.Property(t => t.InOutStatus).HasMaxLength(100).HasDefaultValue("pending");
         });
     }
 
