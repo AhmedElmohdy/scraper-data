@@ -81,15 +81,23 @@ public class TenderDbContext : DbContext
             entity.Property(t => t.BranchName).HasMaxLength(1000);
             entity.Property(t => t.AgencyName).HasMaxLength(1000);
             entity.Property(t => t.TenderIdString).HasMaxLength(500);
+            entity.Property(t => t.TenderStatusName).HasMaxLength(500);
+            entity.Property(t => t.TenderStatusIdString).HasMaxLength(500);
             entity.Property(t => t.TenderTypeName).HasMaxLength(500);
             entity.Property(t => t.LastEnqueriesDate).HasMaxLength(500);
             entity.Property(t => t.LastOfferPresentationDate).HasMaxLength(500);
             entity.Property(t => t.OffersOpeningDate).HasMaxLength(500);
             entity.Property(t => t.SubmitionDate).HasMaxLength(500);
+            entity.Property(t => t.LastEnqueriesDateHijri).HasMaxLength(500);
+            entity.Property(t => t.OffersOpeningDateHijri).HasMaxLength(500);
+            entity.Property(t => t.LastOfferPresentationDateHijri).HasMaxLength(500);
             entity.Property(t => t.CurrentDateTime).HasMaxLength(500);
             entity.Property(t => t.FinancialFees).HasColumnType("decimal(18,2)");
             entity.Property(t => t.InvitationCost).HasColumnType("decimal(18,2)");
             entity.Property(t => t.BuyingCost).HasColumnType("decimal(18,2)");
+            entity.Property(t => t.CondetionalBookletPrice).HasColumnType("decimal(18,2)");
+            entity.Property(t => t.UgrpRfxUrl).HasMaxLength(2000);
+            entity.Property(t => t.UgrpRFXResponseURL).HasMaxLength(2000);
         });
     }
 

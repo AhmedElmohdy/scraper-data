@@ -40,6 +40,13 @@ public class SupplierTenderEntity
     // ------------------------------------------------------------------
 
     public int? TenderStatusId { get; set; }
+
+    /// <summary>Human-readable status label (e.g. "?????").</summary>
+    public string? TenderStatusName { get; set; }
+
+    /// <summary>String representation of the tender status ID.</summary>
+    public string? TenderStatusIdString { get; set; }
+
     public int? TenderTypeId { get; set; }
     public string? TenderTypeName { get; set; }
 
@@ -52,6 +59,15 @@ public class SupplierTenderEntity
     public string? OffersOpeningDate { get; set; }
     public string? SubmitionDate { get; set; }
 
+    /// <summary>Enquiry deadline in Hijri calendar format.</summary>
+    public string? LastEnqueriesDateHijri { get; set; }
+
+    /// <summary>Offers opening date in Hijri calendar format.</summary>
+    public string? OffersOpeningDateHijri { get; set; }
+
+    /// <summary>Offer presentation deadline in Hijri calendar format.</summary>
+    public string? LastOfferPresentationDateHijri { get; set; }
+
     // ------------------------------------------------------------------
     // Financial
     // ------------------------------------------------------------------
@@ -60,6 +76,9 @@ public class SupplierTenderEntity
     public decimal? FinancialFees { get; set; }
     public decimal? InvitationCost { get; set; }
     public decimal? BuyingCost { get; set; }
+
+    /// <summary>Conditional booklet price (????? ?????? ????????).</summary>
+    public decimal? CondetionalBookletPrice { get; set; }
 
     // ------------------------------------------------------------------
     // Remaining time (snapshot at last sync)
@@ -71,6 +90,22 @@ public class SupplierTenderEntity
 
     /// <summary>Server timestamp string returned by the API for this record.</summary>
     public string? CurrentDateTime { get; set; }
+
+    // ------------------------------------------------------------------
+    // Invitation / UGRP flags
+    // ------------------------------------------------------------------
+
+    /// <summary>Indicates whether the tender has active invitations.</summary>
+    public bool? HasInvitations { get; set; }
+
+    /// <summary>Indicates whether the tender is part of the UGRP programme.</summary>
+    public bool? IsUGRP { get; set; }
+
+    /// <summary>URL for the UGRP RFX details page.</summary>
+    public string? UgrpRfxUrl { get; set; }
+
+    /// <summary>URL for submitting a UGRP RFX response.</summary>
+    public string? UgrpRFXResponseURL { get; set; }
 
     // ------------------------------------------------------------------
     // Audit

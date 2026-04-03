@@ -63,6 +63,14 @@ public class SupplierTenderItemDto
     [JsonPropertyName("tenderStatusId")]
     public int? TenderStatusId { get; set; }
 
+    /// <summary>Human-readable status label returned by the API.</summary>
+    [JsonPropertyName("tenderStatusName")]
+    public string? TenderStatusName { get; set; }
+
+    /// <summary>String representation of the tender status ID.</summary>
+    [JsonPropertyName("tenderStatusIdString")]
+    public string? TenderStatusIdString { get; set; }
+
     [JsonPropertyName("tenderTypeId")]
     public int? TenderTypeId { get; set; }
 
@@ -73,13 +81,25 @@ public class SupplierTenderItemDto
     [JsonPropertyName("lastEnqueriesDate")]
     public string? LastEnqueriesDate { get; set; }
 
+    /// <summary>Enquiry deadline in Hijri calendar format.</summary>
+    [JsonPropertyName("lastEnqueriesDateHijri")]
+    public string? LastEnqueriesDateHijri { get; set; }
+
     /// <summary>Deadline for submitting the offer.</summary>
     [JsonPropertyName("lastOfferPresentationDate")]
     public string? LastOfferPresentationDate { get; set; }
 
+    /// <summary>Offer presentation deadline in Hijri calendar format.</summary>
+    [JsonPropertyName("lastOfferPresentationDateHijri")]
+    public string? LastOfferPresentationDateHijri { get; set; }
+
     /// <summary>Date when offers will be publicly opened.</summary>
     [JsonPropertyName("offersOpeningDate")]
     public string? OffersOpeningDate { get; set; }
+
+    /// <summary>Offers opening date in Hijri calendar format.</summary>
+    [JsonPropertyName("offersOpeningDateHijri")]
+    public string? OffersOpeningDateHijri { get; set; }
 
     [JsonPropertyName("tenderActivityId")]
     public int? TenderActivityId { get; set; }
@@ -97,6 +117,10 @@ public class SupplierTenderItemDto
     [JsonPropertyName("buyingCost")]
     public decimal? BuyingCost { get; set; }
 
+    /// <summary>Conditional booklet price (????? ?????? ????????).</summary>
+    [JsonPropertyName("condetionalBookletPrice")]
+    public decimal? CondetionalBookletPrice { get; set; }
+
     /// <summary>Remaining days until offer deadline.</summary>
     [JsonPropertyName("remainingDays")]
     public int? RemainingDays { get; set; }
@@ -110,6 +134,22 @@ public class SupplierTenderItemDto
     /// <summary>Server timestamp at the moment the page was generated.</summary>
     [JsonPropertyName("currentDateTime")]
     public string? CurrentDateTime { get; set; }
+
+    /// <summary>Indicates whether the tender has active invitations.</summary>
+    [JsonPropertyName("hasInvitations")]
+    public bool? HasInvitations { get; set; }
+
+    /// <summary>Indicates whether the tender is part of the UGRP programme.</summary>
+    [JsonPropertyName("isUGRP")]
+    public bool? IsUGRP { get; set; }
+
+    /// <summary>URL for the UGRP RFX details page.</summary>
+    [JsonPropertyName("ugrpRfxUrl")]
+    public string? UgrpRfxUrl { get; set; }
+
+    /// <summary>URL for submitting a UGRP RFX response.</summary>
+    [JsonPropertyName("ugrpRFXResponseURL")]
+    public string? UgrpRFXResponseURL { get; set; }
 }
 
 // ---------------------------------------------------------------------------
@@ -129,16 +169,50 @@ public class SupplierTenderListItemDto
     public string? BranchName { get; set; }
     public string? AgencyName { get; set; }
     public string? TenderTypeName { get; set; }
+
+    /// <summary>Human-readable status label.</summary>
+    public string? TenderStatusName { get; set; }
+
+    /// <summary>String representation of the tender status ID.</summary>
+    public string? TenderStatusIdString { get; set; }
+
     public string? SubmitionDate { get; set; }
     public string? LastEnqueriesDate { get; set; }
+
+    /// <summary>Enquiry deadline in Hijri calendar format.</summary>
+    public string? LastEnqueriesDateHijri { get; set; }
+
     public string? LastOfferPresentationDate { get; set; }
+
+    /// <summary>Offer presentation deadline in Hijri calendar format.</summary>
+    public string? LastOfferPresentationDateHijri { get; set; }
+
     public string? OffersOpeningDate { get; set; }
+
+    /// <summary>Offers opening date in Hijri calendar format.</summary>
+    public string? OffersOpeningDateHijri { get; set; }
+
     public int? RemainingDays { get; set; }
     public int? RemainingHours { get; set; }
     public int? RemainingMins { get; set; }
     public decimal? FinancialFees { get; set; }
     public decimal? InvitationCost { get; set; }
     public decimal? BuyingCost { get; set; }
+
+    /// <summary>Conditional booklet price (????? ?????? ????????).</summary>
+    public decimal? CondetionalBookletPrice { get; set; }
+
+    /// <summary>Indicates whether the tender has active invitations.</summary>
+    public bool? HasInvitations { get; set; }
+
+    /// <summary>Indicates whether the tender is part of the UGRP programme.</summary>
+    public bool? IsUGRP { get; set; }
+
+    /// <summary>URL for the UGRP RFX details page.</summary>
+    public string? UgrpRfxUrl { get; set; }
+
+    /// <summary>URL for submitting a UGRP RFX response.</summary>
+    public string? UgrpRFXResponseURL { get; set; }
 }
 
 /// <summary>
