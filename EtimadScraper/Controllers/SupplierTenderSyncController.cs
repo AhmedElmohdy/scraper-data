@@ -91,6 +91,43 @@ public class SupplierTenderSyncController : ControllerBase
     }
 
     /// <summary>
+    /// Updates the <c>InOutStatus</c> field of a supplier tender identified by
+    /// <paramref name="tenderIdString"/>.
+    /// </summary>
+    /// <param name="tenderIdString">The TenderIdString of the record to update.</param>
+    /// <param name="request">Request body containing the new status value.</param>
+    /// <param name="cancellationToken">Standard ASP.NET Core cancellation token.</param>
+    [HttpPatch("{tenderId}/status")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateStatus(
+        int tenderId,
+        [FromBody] UpdateInOutStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Status))
+            return BadRequest("Status value must not be empty.");
+
+        var tender = await _db.SupplierTenders
+            .FirstOrDefaultAsync(t => t.Id == tenderId, cancellationToken);
+
+        if (tender is null)
+            return NotFound($"No tender found with TenderIdString '{tenderId}'.");
+
+        tender.InOutStatus  = request.Status;
+        tender.LastSyncedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "InOutStatus for TenderIdString '{TenderIdString}' updated to '{Status}'.",
+            tenderId, request.Status);
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// Returns three counts of supplier tenders from the local database,
     /// grouped by SubmitionDate: today, yesterday, and the last 7 days.
     /// </summary>
@@ -135,6 +172,105 @@ public class SupplierTenderSyncController : ControllerBase
             TodayCount     = todayCount,
             YesterdayCount = yesterdayCount,
             Last7DaysCount = last7DaysCount,
+        });
+    }
+
+    /// <summary>
+    /// Returns a statistics summary of supplier tenders grouped by
+    /// <c>InOutStatus</c> (IN / OUT / PENDING) and <c>SubmitionDate</c>.
+    ///
+    /// Cards returned:
+    /// - Total Tenders (all + today)
+    /// - Matching breakdown (IN / OUT / PENDING counts across all tenders that have an InOutStatus)
+    /// - Total IN (all + today)
+    /// </summary>
+    /// <param name="cancellationToken">Standard ASP.NET Core cancellation token.</param>
+    [HttpGet("statistics")]
+    [ProducesResponseType(typeof(TenderStatisticsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Statistics(CancellationToken cancellationToken)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        var rows = await _db.SupplierTenders
+            .AsNoTracking()
+            .Select(t => new
+            {
+                t.InOutStatus,
+                t.SubmitionDate,
+                t.Evaluated,
+            })
+            .ToListAsync(cancellationToken);
+
+        int totalTenders      = rows.Count;
+        int totalTodayTenders = 0;
+        int matchingTotal     = 0;
+        int matchingIn        = 0;
+        int matchingOut       = 0;
+        int matchingPending   = 0;
+        int totalIn           = 0;
+        int totalInToday      = 0;
+        int evaluatedTotal    = 0;
+        int evaluatedToday    = 0;
+
+        foreach (var row in rows)
+        {
+            // Parse SubmitionDate once
+            DateTime? submitionDate = null;
+            if (row.SubmitionDate != null && DateTime.TryParse(row.SubmitionDate, out var parsed))
+                submitionDate = parsed.Date;
+
+            bool isToday = submitionDate.HasValue && submitionDate.Value == today;
+
+            if (isToday)
+                totalTodayTenders++;
+
+            // Evaluated card
+            if (row.Evaluated == true)
+            {
+                evaluatedTotal++;
+                if (isToday)
+                    evaluatedToday++;
+            }
+
+            // Matching card: count every row that has a non-null InOutStatus
+            if (!string.IsNullOrWhiteSpace(row.InOutStatus))
+            {
+                matchingTotal++;
+
+                var status = row.InOutStatus.Trim().ToUpperInvariant();
+
+                if (status == "IN")
+                {
+                    matchingIn++;
+                    totalIn++;
+
+                    if (isToday)
+                        totalInToday++;
+                }
+                else if (status == "OUT")
+                {
+                    matchingOut++;
+                }
+                else
+                {
+                    // PENDING or any other value
+                    matchingPending++;
+                }
+            }
+        }
+
+        return Ok(new TenderStatisticsDto
+        {
+            TotalTenders      = totalTenders,
+            TotalTodayTenders = totalTodayTenders,
+            MatchingTotal     = matchingTotal,
+            MatchingIn        = matchingIn,
+            MatchingOut       = matchingOut,
+            MatchingPending   = matchingPending,
+            TotalIn           = totalIn,
+            TotalInToday      = totalInToday,
+            EvaluatedTotal    = evaluatedTotal,
+            EvaluatedToday    = evaluatedToday,
         });
     }
 
