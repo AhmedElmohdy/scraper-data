@@ -1,3 +1,4 @@
+using EtimadScraper.Configuration;
 using EtimadScraper.Data;
 using EtimadScraper.Models;
 using EtimadScraper.Services;
@@ -19,16 +20,19 @@ public class SupplierTenderSyncController : ControllerBase
 {
     private readonly ISupplierTenderSyncService _syncService;
     private readonly TenderDbContext _db;
+    private readonly TenderEvaluationSettings _evaluationSettings;
     private readonly ILogger<SupplierTenderSyncController> _logger;
 
     public SupplierTenderSyncController(
         ISupplierTenderSyncService syncService,
         TenderDbContext db,
+        TenderEvaluationSettings evaluationSettings,
         ILogger<SupplierTenderSyncController> logger)
     {
-        _syncService = syncService;
-        _db          = db;
-        _logger      = logger;
+        _syncService         = syncService;
+        _db                  = db;
+        _evaluationSettings  = evaluationSettings;
+        _logger              = logger;
     }
 
     /// <summary>
@@ -145,15 +149,17 @@ public class SupplierTenderSyncController : ControllerBase
     /// <param name="tenderName">Optional filter – partial match on TenderName.</param> 
     /// <param name="branchName">Optional filter – partial match on BranchName.</param>
     /// <param name="agencyName">Optional filter – partial match on AgencyName.</param>
+    /// <param name="matchedScore">When true, returns only tenders with MatchingScore &gt;= MinMatchingScore from settings.</param>
     /// <param name="cancellationToken">Standard ASP.NET Core cancellation token.</param>
     [HttpGet("list")]
     [ProducesResponseType(typeof(SupplierTenderListResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
-        [FromQuery] int    page         = 1,
-        [FromQuery] int    pageSize     = 10,
-        [FromQuery] string? tenderName  = null,
-        [FromQuery] string? branchName  = null,
-        [FromQuery] string? agencyName  = null,
+        [FromQuery] int    page          = 1,
+        [FromQuery] int    pageSize      = 10,
+        [FromQuery] string? tenderName   = null,
+        [FromQuery] string? branchName   = null,
+        [FromQuery] string? agencyName   = null,
+        [FromQuery] bool    matchedScore = false,
         CancellationToken cancellationToken = default)
     {
         page     = Math.Max(1, page);
@@ -172,6 +178,10 @@ public class SupplierTenderSyncController : ControllerBase
         if (!string.IsNullOrWhiteSpace(agencyName))
             query = query.Where(t => t.AgencyName != null &&
                                      t.AgencyName.Contains(agencyName));
+
+        if (matchedScore)
+            query = query.Where(t => t.MatchingScore != null &&
+                                     t.MatchingScore >= _evaluationSettings.MinMatchingScore);
 
         var totalCount = await query.CountAsync(cancellationToken);
 

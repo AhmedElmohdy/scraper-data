@@ -22,7 +22,7 @@ public class Program
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("FrontendPolicy", policy =>
-                policy.WithOrigins("http://localhost:4200")
+                policy.WithOrigins("http://localhost:4200", "http://localhost:3000")
                       .AllowAnyHeader()
                       .AllowAnyMethod());
         });
